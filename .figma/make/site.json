@@ -1,0 +1,10 @@
+{
+  "description": "Streamline the farm-to-table process by connecting farmers directly with buyers for seamless ordering and tracking of fresh produce.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
