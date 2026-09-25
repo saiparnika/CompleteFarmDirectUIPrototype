@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, needsRoleSelection } = useAuth();
 
   if (loading) {
     return (
@@ -20,7 +20,17 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     );
   }
 
-  if (!user || !profile) {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (needsRoleSelection) {
+    // Authenticated but hasn't chosen a role (e.g. new Google OAuth user)
+    return <Navigate to="/role-select" replace />;
+  }
+
+  if (!profile) {
+    // Shouldn't happen (handle_new_user always creates a profile), but fallback safely
     return <Navigate to="/login" replace />;
   }
 

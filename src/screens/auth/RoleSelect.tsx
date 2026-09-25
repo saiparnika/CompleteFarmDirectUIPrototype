@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Btn, Input } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 const roles = [
   {
@@ -38,7 +39,7 @@ const roles = [
 
 export default function RoleSelect() {
   const navigate = useNavigate();
-  const { signUp } = useAuth();
+  const { signUp, user, needsRoleSelection, refreshProfile } = useAuth();
   
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [fullName, setFullName] = useState('');
@@ -47,6 +48,10 @@ export default function RoleSelect() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Pre-fill name from Google user metadata if available
+  const googleDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || '';
+  const googleEmail = user?.email || '';
 
   const handleSignup = async () => {
     if (!fullName || !email || !password || !selectedRole) {
@@ -69,6 +74,97 @@ export default function RoleSelect() {
     }
   };
 
+  /**
+   * Handle Google user role assignment via secure SECURITY DEFINER RPC.
+   *
+   * The assign_initial_role() function:
+   * - Validates role is farmer/buyer/bulk_buyer (never admin)
+   * - Checks user_metadata doesn't already have a role (prevents re-assignment)
+   * - Temporarily disables the profile_update trigger to bypass role-lock
+   * - Updates the profile role
+   * - Stamps the role into user_metadata to prevent future calls
+   */
+  const handleGoogleRoleSelect = async (roleId: string) => {
+    if (!user) return;
+
+    // Client-side guard (server enforces too)
+    if (roleId === 'admin') {
+      setError('Admin signups are not allowed.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Call the secure SECURITY DEFINER RPC to assign the role
+      const { error: rpcError } = await supabase.rpc('assign_initial_role', {
+        p_role: roleId,
+      });
+
+      if (rpcError) {
+        setError(rpcError.message || 'Failed to set up your profile. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Refresh the auth session to pick up the updated user_metadata
+      // (assign_initial_role stamps role into user_metadata)
+      await supabase.auth.refreshSession();
+
+      // Refresh profile in context so routing picks up the new role
+      await refreshProfile();
+
+      // Navigate to the correct dashboard
+      const selectedRoleObj = roles.find(r => r.id === roleId);
+      if (selectedRoleObj) {
+        navigate(selectedRoleObj.path, { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    } catch (err: any) {
+      setError('Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  // Google user flow: show role selection only (no email/password form)
+  if (needsRoleSelection) {
+    return (
+      <div className="min-h-screen bg-[#F7F8F2] flex flex-col items-center justify-center p-6">
+        <div className="flex items-center gap-2 mb-10">
+          <span className="text-3xl">🌾</span>
+          <span className="text-2xl font-bold text-[#2E7D32]">FarmDirect</span>
+        </div>
+
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome, {googleDisplayName || googleEmail}!</h1>
+          <p className="text-gray-500">Choose your role to get started with FarmDirect.</p>
+        </div>
+
+        {error && <div className="text-red-500 text-sm mb-6 text-center">{error}</div>}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl">
+          {roles.map(role => (
+            <button key={role.title} onClick={() => handleGoogleRoleSelect(role.id)}
+              disabled={loading}
+              className={`flex flex-col items-center text-center p-8 rounded-2xl border-2 bg-gradient-to-b ${role.color} ${role.border} hover:shadow-md transition-all group ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-5 text-4xl group-hover:scale-110 transition-transform">
+                {role.icon}
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">{role.title}</h2>
+              <p className="text-sm text-gray-500 mb-6 leading-relaxed">{role.desc}</p>
+              <span className={`px-6 py-2.5 rounded-xl text-sm font-semibold ${role.btn} hover:opacity-90 transition`}>
+                {loading ? 'Setting up...' : 'Select Role'}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Standard email/password signup flow (unchanged)
   return (
     <div className="min-h-screen bg-[#F7F8F2] flex flex-col items-center justify-center p-6">
       <div className="flex items-center gap-2 mb-10">

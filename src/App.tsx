@@ -13,7 +13,7 @@ import FarmerProducts from './screens/farmer/Products';
 import FarmerOrders from './screens/farmer/Orders';
 import FarmerOrderDetail from './screens/farmer/OrderDetail';
 import FarmerInsights from './screens/farmer/Insights';
-import FarmerProfile from './screens/farmer/Profile';
+import SharedProfile from './screens/shared/Profile';
 
 import BuyerHome from './screens/buyer/Home';
 import Marketplace from './screens/buyer/Marketplace';
@@ -52,7 +52,7 @@ export default function App() {
             <Route path="/farmer/orders" element={<FarmerOrders />} />
             <Route path="/farmer/orders/:id" element={<FarmerOrderDetail />} />
             <Route path="/farmer/insights" element={<FarmerInsights />} />
-            <Route path="/farmer/profile" element={<FarmerProfile />} />
+            <Route path="/farmer/profile" element={<SharedProfile />} />
           </Route>
 
           {/* Buyer */}
@@ -70,7 +70,7 @@ export default function App() {
             <Route path="/buyer/bulk-match" element={<BulkMatch />} />
             <Route path="/buyer/orders" element={<BuyerOrders />} />
             <Route path="/buyer/favorites" element={<BuyerHome />} />
-            <Route path="/buyer/profile" element={<FarmerProfileBuyer />} />
+            <Route path="/buyer/profile" element={<SharedProfile />} />
           </Route>
 
           {/* Admin */}

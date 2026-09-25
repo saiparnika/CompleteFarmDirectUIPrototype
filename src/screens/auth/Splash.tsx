@@ -4,12 +4,15 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function Splash() {
   const navigate = useNavigate();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, needsRoleSelection } = useAuth();
   
   useEffect(() => {
     const t = setTimeout(() => {
       if (!loading) {
-        if (user && profile) {
+        if (needsRoleSelection) {
+          // Authenticated (e.g. Google OAuth) but hasn't chosen a role yet
+          navigate('/role-select');
+        } else if (user && profile) {
           if (profile.role === 'farmer') navigate('/farmer/dashboard');
           else if (profile.role === 'buyer' || profile.role === 'bulk_buyer') navigate('/buyer/home');
           else if (profile.role === 'admin') navigate('/admin/dashboard');
@@ -20,7 +23,7 @@ export default function Splash() {
       }
     }, 2000);
     return () => clearTimeout(t);
-  }, [navigate, user, profile, loading]);
+  }, [navigate, user, profile, loading, needsRoleSelection]);
 
   return (
     <div className="min-h-screen bg-[#2E7D32] flex flex-col items-center justify-center gap-6">

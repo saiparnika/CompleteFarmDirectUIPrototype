@@ -17,8 +17,11 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  /** True when user is authenticated but hasn't chosen their role yet (Google OAuth new user) */
+  needsRoleSelection: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, fullName: string, role: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
   refreshProfile: () => Promise<void>;
 }
@@ -95,6 +98,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  /**
+   * Detect if the current user needs to choose a role.
+   *
+   * The handle_new_user() trigger auto-creates a profile with role='buyer'
+   * for Google OAuth users (since Google metadata has no 'role' field).
+   * Email/password signups always include 'role' in user_metadata.
+   *
+   * So: user is authenticated + user_metadata has no 'role' key → needs role selection.
+   * This works for both cases:
+   *   - Profile was auto-created (has buyer role, but user didn't choose)
+   *   - Profile wasn't created (edge case)
+   */
+  const needsRoleSelection = Boolean(
+    user && !user.user_metadata?.role
+  );
+
   const signIn = async (email: string, password: string) => {
     return await supabase.auth.signInWithPassword({ email, password });
   };
@@ -117,6 +136,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
+  const signInWithGoogle = async () => {
+    return await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+  };
+
   const signOut = async () => {
     return await supabase.auth.signOut();
   };
@@ -126,8 +154,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     profile,
     loading,
+    needsRoleSelection,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
     refreshProfile
   };
